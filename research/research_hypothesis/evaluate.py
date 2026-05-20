@@ -12,13 +12,9 @@ def get_residual(u, alpha=0.01, dx=0.05, dt=0.05):
     """Calculates the mean squared physical residual for the 1D Heat Equation."""
     u_t = (u[:, 1:] - u[:, :-1]) / dt
     u_xx = (u[2:, :-1] - 2*u[1:-1, :-1] + u[:-2, :-1]) / (dx**2)
-    return np.mean((u_t[1:-1, :] - alpha * u_xx)**2)
+    return np.mean((u_t[1:-1, :] - alpha * u_xx)**2) 
 
-def evaluate():
-    print("=" * 60)
-    print("STARTING COMPREHENSIVE BENCHMARK EVALUATION")
-    print("=" * 60)
-
+def evaluate(): 
     # 1. Load Data
     data_path = 'data/heat_data.npz'
     if not os.path.exists(data_path):
@@ -47,7 +43,7 @@ def evaluate():
     sigma = 0.3
     
     # 2. Train PINN
-    print("\nTraining PINN Baseline...", flush=True)
+    print("\nTraining PINN Baseline", flush=True)
     pinn = SimplePINN()
     for epoch in range(1000):
         pinn.train_step(data['x_train'], data['t_train'], data['u_train'], None, None)
@@ -68,17 +64,14 @@ def evaluate():
     }
     
     # Pre-train DBN bottom layer
-    print("Pre-training PI-DBN bottom layers...", flush=True)
     models['PI-DBN'].pretrain(v0, epochs=10, batch_size=1)
     
     # Training Loop
     for name, model in models.items():
-        print(f"Training {name} for {epochs} epochs...", flush=True)
         for epoch in range(epochs):
             model.train_step(v0, m0, lambda_phys=0.001)
             
     # 4. Reconstruct & Evaluate
-    print("\nEvaluating and sampling all models...", flush=True)
     n_samples = 30
     eval_results = {}
     
@@ -106,19 +99,14 @@ def evaluate():
         }
 
     # 5. Output Markdown Results Table
-    print("\n" + "=" * 60)
     print("BENCHMARK COMPARISON RESULTS")
-    print("=" * 60)
     print(f"| Model | MSE | Physical Residual | 2-Sigma UQ Coverage |")
-    print(f"|---|---|---|---|")
     print(f"| PINN Baseline | {pinn_mse:.6f} | {pinn_res:.6f} | N/A (Deterministic) |")
     for name in models.keys():
         res = eval_results[name]
         print(f"| {name} | {res['mse']:.6f} | {res['res']:.6f} | {res['coverage']:.2%} |")
-    print("=" * 60)
 
     # 6. Plotting comprehensive grid
-    print("\nGenerating final comparison plots...", flush=True)
     plt.figure(figsize=(18, 14))
     
     # True Solution
@@ -163,7 +151,6 @@ def evaluate():
     os.makedirs('data', exist_ok=True)
     plot_save_path = 'data/final_comparison.png'
     plt.savefig(plot_save_path, dpi=150)
-    print(f"Final benchmark comparison matrix saved to {plot_save_path}")
 
 if __name__ == "__main__":
     evaluate()

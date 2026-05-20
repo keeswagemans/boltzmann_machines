@@ -1,6 +1,6 @@
 # Physics-Informed Boltzmann Machines (PI-BMs)
 
-This repository hosts a state-of-the-art research suite exploring the integration of physical laws (partial differential equations) into the energy functions of various Boltzmann Machine architectures. We investigate **Physics-Informed Boltzmann Machines (PI-BMs)** for the reconstruction of continuous dynamical systems from extremely sparse and noisy sensor observations, providing robust uncertainty quantification (UQ).
+This repository hosts a research suite exploring the integration of physical laws (partial differential equations) into the energy functions of various Boltzmann Machine architectures. We investigate **Physics-Informed Boltzmann Machines (PI-BMs)** for the reconstruction of continuous dynamical systems from extremely sparse and noisy sensor observations, providing robust uncertainty quantification (UQ).
 
 Our core hypothesis is that the probabilistic, generative nature of Boltzmann Machines acts as a powerful physical prior, outperforming traditional deterministic **Physics-Informed Neural Networks (PINNs)** when observations are highly corrupted or sparse.
 
