@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from rbm import RestrictedBoltzmannMachine
+from boltzmann_machines.restricted_boltzmann.rbm import RestrictedBoltzmannMachine
 
 def generate_mock_data(num_samples=1500):
     """Generates simple 8x8 blocks/bars images as structural patterns."""
