@@ -6,7 +6,6 @@ class RestrictedBoltzmannMachine:
         Restricted Boltzmann Machine (RBM) using Contrastive Divergence (CD-k).
         
         Parameters:
-        --
         n_visible : int
             Number of visible units (input dimensions).
         n_hidden : int
@@ -60,14 +59,12 @@ class RestrictedBoltzmannMachine:
         Performs a k-step Contrastive Divergence update on the RBM weights and biases.
         
         Parameters:
-        --
         v0 : ndarray of shape (batch_size, n_visible)
             The input batch representing empirical data configurations.
         k : int
             The number of Gibbs sampling steps to perform (default is CD-1).
             
         Returns:
-        -----
         float
             The mean reconstruction error (MSE) across this mini-batch.
         """

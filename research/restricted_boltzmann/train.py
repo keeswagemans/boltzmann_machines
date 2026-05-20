@@ -28,7 +28,7 @@ def main():
     X = generate_mock_data()
     rbm = RestrictedBoltzmannMachine(n_visible=visible_units, n_hidden=hidden_units, learning_rate=learning_rate)
     
-    print("\n--- Starting RBM Parameter Updates ---")
+    print("\nStarting RBM Parameter Updates")
     for epoch in range(epochs):
         np.random.shuffle(X)
         epoch_errors = []

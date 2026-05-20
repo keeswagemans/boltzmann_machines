@@ -7,7 +7,6 @@ class ConvolutionalRBM:
         Convolutional Restricted Boltzmann Machine (CRBM).
         
         Parameters:
-        --
         input_shape : tuple (H, W)
             Shape of the input 2D image.
         filter_shape : tuple (FH, FW)

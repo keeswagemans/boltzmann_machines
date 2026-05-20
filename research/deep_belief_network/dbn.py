@@ -12,7 +12,6 @@ class DeepBeliefNetwork:
         Deep Belief Network (DBN) - A stack of Restricted Boltzmann Machines.
         
         Parameters:
-        --
         layer_sizes : list of int
             List containing the number of units in each layer.
             e.g., [784, 500, 200] where 784 is the input (visible) layer.

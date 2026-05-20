@@ -72,10 +72,8 @@ def run_single_setup(noise_std=0.05, lambda_phys=0.001, sigma=0.1, n_samples_dat
     }
 
 if __name__ == "__main__":
-    print("===================================================================")
     print("Experiment 1: Hyperparameter Tuning (Sigma & Physics Weight)")
     print("Goal: Find parameters that yield non-zero coverage and lower MSE.")
-    print("===================================================================")
     best_sig, best_l_phys = 0.1, 0.001
     best_cov = -1
     
@@ -89,10 +87,8 @@ if __name__ == "__main__":
                 best_cov = res['coverage']
                 best_sig, best_l_phys = sig, l_phys
 
-    print("\n===================================================================")
-    print("Experiment 2: Ablation Study (Physics vs No Physics)")
+    print("\nExperiment 2: Ablation Study (Physics vs No Physics)")
     print("Goal: Quantify impact of the physics loss term on reconstruction.")
-    print("===================================================================")
     print(f"Using tuned sigma=0.5", flush=True)
     
     res_no_phys = run_single_setup(noise_std=0.05, lambda_phys=0.0, sigma=0.5)
@@ -101,10 +97,8 @@ if __name__ == "__main__":
     print(f"[No Physics] RBM MSE: {res_no_phys['rbm_mse']:.4f} | RBM Res: {res_no_phys['rbm_res']:.4f}")
     print(f"[W/ Physics] RBM MSE: {res_with_phys['rbm_mse']:.4f} | RBM Res: {res_with_phys['rbm_res']:.4f}")
 
-    print("\n===================================================================")
-    print("Experiment 3: Noise Sensitivity (Low Noise vs High Noise)")
+    print("\nExperiment 3: Noise Sensitivity (Low Noise vs High Noise)")
     print("Goal: Compare PINN vs PI-RBM degradation as observation noise increases.")
-    print("===================================================================")
     for noise in [0.05, 0.2, 0.5]:
         print(f"\nTesting noise_std={noise}...", flush=True)
         res = run_single_setup(noise_std=noise, lambda_phys=0.01, sigma=0.5)

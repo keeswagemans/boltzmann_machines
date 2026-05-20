@@ -8,7 +8,6 @@ class DeepBoltzmannMachine:
         Structure: V <-> H1 <-> H2
         
         Parameters:
-        --
         n_visible : int
             Number of visible units.
         n_h1 : int
@@ -65,7 +64,7 @@ class DeepBoltzmannMachine:
         """
         batch_size = v_data.shape[0]
         
-        # --- Positive Phase (Mean Field Approximation) ---
+        # Positive Phase (Mean Field Approximation)
         # Initialize hidden layers randomly or with a small value
         mu1 = np.full((batch_size, self.n_h1), 0.5)
         mu2 = np.full((batch_size, self.n_h2), 0.5)
@@ -75,7 +74,7 @@ class DeepBoltzmannMachine:
             mu1 = self._sigmoid(np.dot(v_data, self.W1) + np.dot(mu2, self.W2.T) + self.h1_bias)
             mu2 = self._sigmoid(np.dot(mu1, self.W2) + self.h2_bias)
             
-        # --- Negative Phase (Stochastic Approximation / Gibbs Sampling) ---
+        # Negative Phase (Stochastic Approximation / Gibbs Sampling)
         # In a real DBM, we'd use persistent chains (PCD)
         v_neg = v_data.copy()
         h1_neg = (np.random.rand(batch_size, self.n_h1) > 0.5).astype(np.float32)
@@ -86,7 +85,7 @@ class DeepBoltzmannMachine:
             _, v_neg = self.sample_v(h1_neg)
             _, h2_neg = self.sample_h2(h1_neg)
             
-        # --- Update Weights and Biases ---
+        # Update Weights and Biases
         # Gradient for W1: <v*h1>_pos - <v*h1>_neg
         pos_v_h1 = np.dot(v_data.T, mu1) / batch_size
         neg_v_h1 = np.dot(v_neg.T, h1_neg) / batch_size
