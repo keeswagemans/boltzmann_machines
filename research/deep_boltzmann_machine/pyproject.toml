@@ -1,0 +1,12 @@
+[project]
+name = "dbm-repository"
+version = "0.1.0"
+description = "Deep Boltzmann Machine implementation"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.22.0",
+]
+
+[tool.uv]
+managed = true
