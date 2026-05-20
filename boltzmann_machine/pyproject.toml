@@ -1,0 +1,13 @@
+[project]
+name = "boltzmann-machines"
+version = "0.1.0"
+description = "Restricted and Normal Boltzmann Machines implemented from scratch using NumPy"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24.0",
+    "matplotlib>=3.7.0",
+]
+
+[tool.uv]
+managed = true
