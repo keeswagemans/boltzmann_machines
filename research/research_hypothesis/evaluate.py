@@ -1,21 +1,39 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-from pi_rbm import GaussianRBM
 from pinn_baseline import SimplePINN
+from pi_rbm import GaussianRBM
+from pi_bm import GaussianClassicBM
+from pi_crbm import GaussianCRBM
+from pi_dbn import GaussianDBN
+from pi_dbm import GaussianDBM
+
+def get_residual(u, alpha=0.01, dx=0.05, dt=0.05):
+    """Calculates the mean squared physical residual for the 1D Heat Equation."""
+    u_t = (u[:, 1:] - u[:, :-1]) / dt
+    u_xx = (u[2:, :-1] - 2*u[1:-1, :-1] + u[:-2, :-1]) / (dx**2)
+    return np.mean((u_t[1:-1, :] - alpha * u_xx)**2)
 
 def evaluate():
-    # Load data
-    data = np.load('data/heat_data.npz')
+    print("=" * 60)
+    print("STARTING COMPREHENSIVE BENCHMARK EVALUATION")
+    print("=" * 60)
+
+    # 1. Load Data
+    data_path = 'data/heat_data.npz'
+    if not os.path.exists(data_path):
+        raise FileNotFoundError(f"{data_path} not found. Please run data_gen.py first.")
+        
+    data = np.load(data_path)
     nx, nt = 20, 20
     U_true = data['U_true']
     X, T = data['X'], data['T']
     
-    # Load/Re-train RBM
     x_grid = data['x_grid']
     t_grid = data['t_grid']
     mask = np.zeros((nx, nt))
     v_init = np.zeros((nx, nt))
+    
     for i in range(len(data['x_train'])):
         xi = np.argmin(np.abs(x_grid - data['x_train'][i]))
         ti = np.argmin(np.abs(t_grid - data['t_train'][i]))
@@ -25,90 +43,127 @@ def evaluate():
     v0 = v_init.flatten().reshape(1, -1)
     m0 = mask.flatten().reshape(1, -1)
     
-    rbm = GaussianRBM(n_visible=nx*nt, n_hidden=100, lr=0.001)
-    for epoch in range(5000):
-        rbm.train_step(v0, m0, lambda_phys=0.001)
-        
-    # Load/Re-train PINN
+    epochs = 1000
+    sigma = 0.3
+    
+    # 2. Train PINN
+    print("\nTraining PINN Baseline...", flush=True)
     pinn = SimplePINN()
     for epoch in range(1000):
         pinn.train_step(data['x_train'], data['t_train'], data['u_train'], None, None)
-        
+    
     # PINN Prediction
     X_grid_flat = np.stack([X.flatten(), T.flatten()], axis=1)
     u_pinn = pinn.forward(X_grid_flat).reshape(nx, nt)
-    
-    # RBM Samples
-    n_samples = 50
-    rbm_samples = []
-    for _ in range(n_samples):
-        v_rec = rbm.reconstruct(v0, m0, steps=20).reshape(nx, nt)
-        rbm_samples.append(v_rec)
-        
-    rbm_samples = np.array(rbm_samples)
-    u_rbm_mean = np.mean(rbm_samples, axis=0)
-    u_rbm_std = np.std(rbm_samples, axis=0)
-    
-    # Errors
     pinn_mse = np.mean((u_pinn - U_true)**2)
-    rbm_mse = np.mean((u_rbm_mean - U_true)**2)
-    
-    # Uncertainty
-    within_2sigma = (U_true >= u_rbm_mean - 2*u_rbm_std) & (U_true <= u_rbm_mean + 2*u_rbm_std)
-    coverage = np.mean(within_2sigma)
-    
-    # Physical residual
-    def get_residual(u, alpha=0.01, dx=0.05, dt=0.05):
-        u_t = (u[:, 1:] - u[:, :-1]) / dt
-        u_xx = (u[2:, :-1] - 2*u[1:-1, :-1] + u[:-2, :-1]) / (dx**2)
-        return np.mean((u_t[1:-1, :] - alpha * u_xx)**2)
-
     pinn_res = get_residual(u_pinn)
-    rbm_res = get_residual(u_rbm_mean)
     
-    print(f"PINN MSE: {pinn_mse:.6f}, Physics Residual: {pinn_res:.6f}")
-    print(f"PI-RBM MSE: {rbm_mse:.6f}, Physics Residual: {rbm_res:.6f}")
-    print(f"PI-RBM 2nd Sigma Coverage: {coverage:.2%}")
+    # 3. Train all Boltzmann models
+    models = {
+        'PI-RBM': GaussianRBM(n_visible=nx*nt, n_hidden=100, lr=0.001, sigma=sigma),
+        'PI-ClassicBM': GaussianClassicBM(n_visible=nx*nt, n_hidden=50, lr=0.001, sigma=sigma),
+        'PI-CRBM': GaussianCRBM(input_shape=(nx, nt), filter_shape=(3, 3), n_filters=4, lr=0.001, sigma=sigma),
+        'PI-DBN': GaussianDBN(layer_sizes=[nx*nt, 100, 50], lr=0.001, sigma=sigma),
+        'PI-DBM': GaussianDBM(n_visible=nx*nt, n_h1=50, n_h2=20, lr=0.001, sigma=sigma)
+    }
     
-    # Plotting
-    plt.figure(figsize=(15, 10))
+    # Pre-train DBN bottom layer
+    print("Pre-training PI-DBN bottom layers...", flush=True)
+    models['PI-DBN'].pretrain(v0, epochs=10, batch_size=1)
     
-    plt.subplot(2, 3, 1)
-    plt.pcolormesh(T, X, U_true, shading='auto')
+    # Training Loop
+    for name, model in models.items():
+        print(f"Training {name} for {epochs} epochs...", flush=True)
+        for epoch in range(epochs):
+            model.train_step(v0, m0, lambda_phys=0.001)
+            
+    # 4. Reconstruct & Evaluate
+    print("\nEvaluating and sampling all models...", flush=True)
+    n_samples = 30
+    eval_results = {}
+    
+    for name, model in models.items():
+        samples = []
+        for _ in range(n_samples):
+            v_rec = model.reconstruct(v0, m0, steps=30).reshape(nx, nt)
+            samples.append(v_rec)
+        samples = np.array(samples)
+        
+        mean_field = np.mean(samples, axis=0)
+        std_field = np.std(samples, axis=0)
+        
+        mse = np.mean((mean_field - U_true)**2)
+        res = get_residual(mean_field)
+        within_2sigma = (U_true >= mean_field - 2*std_field) & (U_true <= mean_field + 2*std_field)
+        coverage = np.mean(within_2sigma)
+        
+        eval_results[name] = {
+            'mean': mean_field,
+            'std': std_field,
+            'mse': mse,
+            'res': res,
+            'coverage': coverage
+        }
+
+    # 5. Output Markdown Results Table
+    print("\n" + "=" * 60)
+    print("BENCHMARK COMPARISON RESULTS")
+    print("=" * 60)
+    print(f"| Model | MSE | Physical Residual | 2-Sigma UQ Coverage |")
+    print(f"|---|---|---|---|")
+    print(f"| PINN Baseline | {pinn_mse:.6f} | {pinn_res:.6f} | N/A (Deterministic) |")
+    for name in models.keys():
+        res = eval_results[name]
+        print(f"| {name} | {res['mse']:.6f} | {res['res']:.6f} | {res['coverage']:.2%} |")
+    print("=" * 60)
+
+    # 6. Plotting comprehensive grid
+    print("\nGenerating final comparison plots...", flush=True)
+    plt.figure(figsize=(18, 14))
+    
+    # True Solution
+    plt.subplot(4, 4, 1)
+    plt.pcolormesh(T, X, U_true, shading='auto', cmap='viridis')
     plt.colorbar()
-    plt.title('True Solution')
+    plt.scatter(data['t_train'], data['x_train'], c='red', s=10, alpha=0.6, label='Observations')
+    plt.title('True Solution (Heat Eq)')
+    plt.legend()
     
-    plt.subplot(2, 3, 2)
-    plt.pcolormesh(T, X, u_pinn, shading='auto')
+    # PINN
+    plt.subplot(4, 4, 2)
+    plt.pcolormesh(T, X, u_pinn, shading='auto', cmap='viridis')
     plt.colorbar()
     plt.title(f'PINN (MSE: {pinn_mse:.4f})')
     
-    plt.subplot(2, 3, 3)
-    plt.pcolormesh(T, X, u_rbm_mean, shading='auto')
-    plt.colorbar()
-    plt.title(f'PI-RBM Mean (MSE: {rbm_mse:.4f})')
-    
-    plt.subplot(2, 3, 4)
-    plt.pcolormesh(T, X, np.abs(u_pinn - U_true), shading='auto')
+    # PINN Error
+    plt.subplot(4, 4, 3)
+    plt.pcolormesh(T, X, np.abs(u_pinn - U_true), shading='auto', cmap='inferno')
     plt.colorbar()
     plt.title('PINN Absolute Error')
     
-    plt.subplot(2, 3, 5)
-    plt.pcolormesh(T, X, u_rbm_std, shading='auto')
-    plt.colorbar()
-    plt.title('PI-RBM Std (Uncertainty)')
-    
-    plt.subplot(2, 3, 6)
-    # Check if true solution is within 2 sigma
-    within_2sigma = (U_true >= u_rbm_mean - 2*u_rbm_std) & (U_true <= u_rbm_mean + 2*u_rbm_std)
-    coverage = np.mean(within_2sigma)
-    plt.pcolormesh(T, X, within_2sigma.astype(float), shading='auto', cmap='RdYlGn')
-    plt.colorbar()
-    plt.title(f'2nd Sigma Coverage: {coverage:.2%}')
-    
+    plot_idx = 4
+    for name in ['PI-RBM', 'PI-ClassicBM', 'PI-CRBM', 'PI-DBN', 'PI-DBM']:
+        res = eval_results[name]
+        
+        # Mean Reconstructed Field
+        plt.subplot(4, 4, plot_idx)
+        plt.pcolormesh(T, X, res['mean'], shading='auto', cmap='viridis')
+        plt.colorbar()
+        plt.title(f'{name} Mean (MSE: {res["mse"]:.4f})')
+        plot_idx += 1
+        
+        # Uncertainty Field (Standard Dev)
+        plt.subplot(4, 4, plot_idx)
+        plt.pcolormesh(T, X, res['std'], shading='auto', cmap='magma')
+        plt.colorbar()
+        plt.title(f'{name} Uncertainty (Std)')
+        plot_idx += 1
+        
     plt.tight_layout()
-    plt.savefig('data/final_comparison.png')
-    print("Final comparison saved to data/final_comparison.png")
+    os.makedirs('data', exist_ok=True)
+    plot_save_path = 'data/final_comparison.png'
+    plt.savefig(plot_save_path, dpi=150)
+    print(f"Final benchmark comparison matrix saved to {plot_save_path}")
 
 if __name__ == "__main__":
     evaluate()
