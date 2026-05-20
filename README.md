@@ -7,3 +7,4 @@ Made this repo in 2025, about time to put it on GitHub.
 ## Structure
 
 - **research/**: Central hub for all research, hypotheses, and implementations.
+- **data/**: Data used by the machines in the research folder. 
